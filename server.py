@@ -14,13 +14,26 @@ from passlib.context import CryptContext
 import jwt
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+if os.path.exists(ROOT_DIR / ".env"):
+    load_dotenv(ROOT_DIR / ".env")
 
-mongo_url = os.environ['MONGO_URL']
+
+mongo_url = os.getenv("MONGO_URL")
+db_name = os.getenv("DB_NAME")
+
+if not mongo_url or not db_name:
+    raise RuntimeError("Missing MONGO_URL or DB_NAME")
+
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[db_name]
+
 
 app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {"status": "GearGuard backend running"}
+
 api_router = APIRouter(prefix="/api")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -172,8 +185,11 @@ async def login(login_data: UserLogin):
     if not user_doc or not verify_password(login_data.password, user_doc.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    
+
+    token = create_token(user_doc["id"], user_doc["email"])
     user = User(**user_doc)
-    token = create_token(user.id, user.email)
+
     
     return {"user": user.model_dump(), "token": token}
 
@@ -405,7 +421,7 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
