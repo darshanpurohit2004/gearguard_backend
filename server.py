@@ -24,7 +24,13 @@ db_name = os.getenv("DB_NAME")
 if not mongo_url or not db_name:
     raise RuntimeError("Missing MONGO_URL or DB_NAME")
 
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(
+    mongo_url,
+    tls=True,
+    tlsAllowInvalidCertificates=True,
+    serverSelectionTimeoutMS=5000
+)
+
 db = client[db_name]
 
 
